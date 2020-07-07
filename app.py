@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_cors import CORS
 from flask_heroku import Heroku
+from flask_bcrypt import Bcrypt
 import io
 import os
 
@@ -15,6 +16,7 @@ ma = Marshmallow(app)
 
 heroku = Heroku(app)
 CORS(app)
+bcrypt = Bcrypt(app)
 
 
 class File(db.Model):
@@ -100,6 +102,66 @@ def delete_file(id):
 # python repl
 # >>> from app import db
 # >>> db.create_all()
+
+
+@app.route("/user/create", methods=["POST"])
+def create_user():
+    if request.content_type != "application/json":
+        return jsonify("Request must be sent in JSON")
+
+    post_data = request.get_json()
+    username = post_data.get("username")
+    password = post_data.get("password")
+
+    username_check = db.session.query(User.username).filter(
+        User.username == username).first()
+    if username_check is not None:
+        return jsonify("Username Taken")
+
+    hashed_password = bcrypt.generate_password_hash(password).decode("utf8")
+
+    record = User(username, hashed_password)
+    db.session.add(record)
+    db.session.commit()
+
+    return jsonify("User Created Successfully")
+
+
+@app.route("/user/<id>", methods=["GET"])
+def get_user(id):
+    user_data = db.session.query(User).filter(User.id == id).first()
+    return jsonify(user_schema.dump(user_data))
+
+
+@app.route("/user/get", methods=["GET"])
+def get_all_users():
+    all_users = db.session.query(User).all()
+
+    return jsonify(users_schema.dump(all_users))
+
+
+@app.route("/user/verification", methods=["POST"])
+def verify_user():
+    if request.content_type != "application/json":
+        return jsonify("Error: Data must be sent in JSON format")
+
+    post_data = request.get_json()
+    username = post_data.get("username")
+    password = post_data.get("password")
+
+    stored_password = db.session.query(User.password).filter(
+        User.username == username).first()
+
+    if stored_password is None:
+        return jsonify("User NOT Verified")
+
+    valid_password_check = bcrypt.check_password_hash(
+        stored_password[0], password)
+
+    if valid_password_check == False:
+        return jsonify("User NOT verified")
+
+    return jsonify("User Verified!")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ flask-heroku = "*"
 marshmallow-sqlalchemy = "*"
 gunicorn = "*"
 psycopg2-binary = "*"
+flask-bcrypt = "*"
 
 [requires]
 python_version = "3.8"
